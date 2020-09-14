@@ -25,24 +25,28 @@ func (db *SLBDashboard) retrieveActiveConnection() []datapoint {
 	return retrieve("ActiveConnection", db.project)
 }
 
-func (db *SLBDashboard) retrievePacketTX() []datapoint {
-	return retrieve("PacketTX", db.project)
-}
-
-func (db *SLBDashboard) retrievePacketRX() []datapoint {
-	return retrieve("PacketRX", db.project)
-}
-
 func (db *SLBDashboard) retrieveTrafficRX() []datapoint {
-	return retrieve("TrafficRXNew", db.project)
+	return retrieve("InstanceTrafficRX", db.project)
 }
 
 func (db *SLBDashboard) retrieveTrafficTX() []datapoint {
-	return retrieve("TrafficTXNew", db.project)
+	return retrieve("InstanceTrafficTX", db.project)
 }
 
-func (db *SLBDashboard) retrieveNewConnection() []datapoint {
-	return retrieve("NewConnection", db.project)
+func (db *SLBDashboard) retrieveInstanceNewConnectionUtilization() []datapoint {
+	return retrieve("InstanceNewConnectionUtilization", db.project)
+}
+
+func (db *SLBDashboard) retrieveInstanceRt() []datapoint {
+	return retrieve("InstanceRt", db.project)
+}
+
+func (db *SLBDashboard) retrieveInstanceStatusCode5xx() []datapoint {
+	return retrieve("InstanceStatusCode5xx", db.project)
+}
+
+func (db *SLBDashboard) retrieveInstanceUpstreamCode5xx() []datapoint {
+	return retrieve("InstanceUpstreamCode5xx", db.project)
 }
 
 func (db *SLBDashboard) retrieveMaxConnection() []datapoint {
@@ -73,6 +77,14 @@ func (db *SLBDashboard) retrieveDropTrafficTX() []datapoint {
 
 func (db *SLBDashboard) retrieveQps() []datapoint {
 	return retrieve("Qps", db.project)
+}
+
+func (db *SLBDashboard) retrieveInstanceQps() []datapoint {
+	return retrieve("InstanceQps", db.project)
+}
+
+func (db *SLBDashboard) retrieveInstanceQpsUtilization() []datapoint {
+	return retrieve("InstanceQpsUtilization", db.project)
 }
 
 func (db *SLBDashboard) retrieveRt() []datapoint {

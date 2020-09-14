@@ -19,24 +19,24 @@ type CloudmonitorExporter struct {
 	snatConnections  *prometheus.Desc
 
 	// slb dashbaord
-	activeConnection *prometheus.Desc
-	packetRX         *prometheus.Desc
-	packetTX         *prometheus.Desc
-	trafficRX        *prometheus.Desc
-	trafficTX        *prometheus.Desc
-	newConnection    *prometheus.Desc
-	maxConnection    *prometheus.Desc
-	dropConnection   *prometheus.Desc
-	dropPacketRX     *prometheus.Desc
-	dropPacketTX     *prometheus.Desc
-	dropTrafficRX    *prometheus.Desc
-	dropTrafficTX    *prometheus.Desc
-	qps              *prometheus.Desc
-	rt               *prometheus.Desc
-	statusCode5xx    *prometheus.Desc
-	upstreamCode4xx  *prometheus.Desc
-	upstreamCode5xx  *prometheus.Desc
-	upstreamRt       *prometheus.Desc
+	activeConnection                 *prometheus.Desc
+	trafficRX                        *prometheus.Desc
+	trafficTX                        *prometheus.Desc
+	newConnection                    *prometheus.Desc
+	maxConnection                    *prometheus.Desc
+	dropConnection                   *prometheus.Desc
+	dropPacketRX                     *prometheus.Desc
+	dropPacketTX                     *prometheus.Desc
+	dropTrafficRX                    *prometheus.Desc
+	dropTrafficTX                    *prometheus.Desc
+	instanceNewConnectionUtilization *prometheus.Desc
+	instanceUpstreamCode5xx          *prometheus.Desc
+	instanceStatusCode5xx            *prometheus.Desc
+	instanceRt                       *prometheus.Desc
+	instanceQps                      *prometheus.Desc
+	instanceQpsUtilization           *prometheus.Desc
+	instanceTrafficRX                *prometheus.Desc
+	instanceTrafficTX                *prometheus.Desc
 
 	// rds dashbaord
 	cpuUsage        *prometheus.Desc
@@ -76,68 +76,74 @@ func NewExporter(c *cms.Client) *CloudmonitorExporter {
 		),
 
 		// slb dashboard
-		activeConnection: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, "slb", "active_connection"),
-			"Number of active connections per minute",
+		instanceQps: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "slb", "instance_qps"),
+			"Seven-layer protocol instance Queries-per-second",
 			[]string{
 				"id",
-				"port",
-				"vip",
 			},
 			nil,
 		),
 
-		packetRX: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, "slb", "packet_rx_average"),
-			"Average packets received per second",
+		instanceQpsUtilization: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "slb", "instance_qps_utilization"),
+			"Seven-layer protocol instance Queries-per-second used in percentage",
 			[]string{
 				"id",
-				"port",
-				"vip",
 			},
 			nil,
 		),
 
-		packetTX: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, "slb", "packet_tx_average"),
-			"Average packets sent per second",
-			[]string{
-				"id",
-				"port",
-				"vip",
-			},
-			nil,
-		),
-
-		trafficRX: prometheus.NewDesc(
+		instanceTrafficRX: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "slb", "traffic_rx_average"),
 			"Average traffic received per second",
 			[]string{
 				"id",
-				"port",
-				"vip",
 			},
 			nil,
 		),
 
-		trafficTX: prometheus.NewDesc(
+		instanceTrafficTX: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "slb", "traffic_tx_average"),
 			"Average traffic sent per second",
 			[]string{
 				"id",
-				"port",
-				"vip",
 			},
 			nil,
 		),
 
-		newConnection: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, "slb", "new_connection_average"),
-			"Average number of new connections created per second",
+		instanceRt: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "slb", "request_time"),
+			"slb request time",
 			[]string{
 				"id",
-				"port",
-				"vip",
+			},
+			nil,
+		),
+
+		instanceUpstreamCode5xx: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "slb", "upstream_code_5xx"),
+			"Backend server 5xx error",
+			[]string{
+				"id",
+			},
+			nil,
+		),
+
+		instanceStatusCode5xx: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "slb", "status_code_5xx"),
+			"5xx error in the instance itself",
+			[]string{
+				"id",
+			},
+			nil,
+		),
+
+		instanceNewConnectionUtilization: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "slb", "new_connection_utilization"),
+			"Average number of new connections created per second in percentage",
+			[]string{
+				"id",
 			},
 			nil,
 		),
@@ -160,15 +166,6 @@ func NewExporter(c *cms.Client) *CloudmonitorExporter {
 			},
 			nil,
 		),
-
-		activeSessions: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, "rds", "active_sessions"),
-			"Active Sessions per minute",
-			[]string{
-				"id",
-			},
-			nil,
-		),
 	}
 }
 
@@ -181,17 +178,18 @@ func (e *CloudmonitorExporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- e.snatConnections
 
 	// slb dashboard
-	ch <- e.activeConnection
-	ch <- e.packetRX
-	ch <- e.packetTX
-	ch <- e.trafficRX
-	ch <- e.trafficTX
-	ch <- e.newConnection
+	ch <- e.instanceQps
+	ch <- e.instanceQpsUtilization
+	ch <- e.instanceTrafficRX
+	ch <- e.instanceTrafficTX
+	ch <- e.instanceStatusCode5xx
+	ch <- e.instanceUpstreamCode5xx
+	ch <- e.instanceRt
+	ch <- e.instanceNewConnectionUtilization
 
-	// rds dashbaord
+	// rds dashboard
 	ch <- e.cpuUsage
 	ch <- e.connectionUsage
-	ch <- e.activeSessions
 }
 
 // Collect fetches the metrics from Aliyun cms
@@ -228,69 +226,75 @@ func (e *CloudmonitorExporter) Collect(ch chan<- prometheus.Metric) {
 		)
 	}
 
-	for _, point := range slbDashboard.retrieveActiveConnection() {
+	for _, point := range slbDashboard.retrieveInstanceQps() {
 		ch <- prometheus.MustNewConstMetric(
-			e.activeConnection,
-			prometheus.GaugeValue,
-			float64(point.Maximum),
-			point.InstanceId,
-			point.Port,
-			point.Vip,
-		)
-	}
-
-	for _, point := range slbDashboard.retrievePacketRX() {
-		ch <- prometheus.MustNewConstMetric(
-			e.packetRX,
+			e.instanceQps,
 			prometheus.GaugeValue,
 			float64(point.Average),
 			point.InstanceId,
-			point.Port,
-			point.Vip,
 		)
 	}
 
-	for _, point := range slbDashboard.retrievePacketTX() {
+	for _, point := range slbDashboard.retrieveInstanceQpsUtilization() {
 		ch <- prometheus.MustNewConstMetric(
-			e.packetTX,
+			e.instanceQpsUtilization,
 			prometheus.GaugeValue,
 			float64(point.Average),
 			point.InstanceId,
-			point.Port,
-			point.Vip,
 		)
 	}
 
 	for _, point := range slbDashboard.retrieveTrafficRX() {
 		ch <- prometheus.MustNewConstMetric(
-			e.trafficRX,
+			e.instanceTrafficRX,
 			prometheus.GaugeValue,
 			float64(point.Average),
 			point.InstanceId,
-			point.Port,
-			point.Vip,
 		)
 	}
 
 	for _, point := range slbDashboard.retrieveTrafficTX() {
 		ch <- prometheus.MustNewConstMetric(
-			e.trafficTX,
+			e.instanceTrafficTX,
 			prometheus.GaugeValue,
 			float64(point.Average),
 			point.InstanceId,
-			point.Port,
-			point.Vip,
 		)
 	}
 
-	for _, point := range slbDashboard.retrieveNewConnection() {
+	for _, point := range slbDashboard.retrieveInstanceNewConnectionUtilization() {
 		ch <- prometheus.MustNewConstMetric(
-			e.newConnection,
+			e.instanceNewConnectionUtilization,
 			prometheus.GaugeValue,
 			float64(point.Average),
 			point.InstanceId,
-			point.Port,
-			point.Vip,
+		)
+	}
+
+	for _, point := range slbDashboard.retrieveInstanceRt() {
+		ch <- prometheus.MustNewConstMetric(
+			e.instanceRt,
+			prometheus.GaugeValue,
+			float64(point.Average),
+			point.InstanceId,
+		)
+	}
+
+	for _, point := range slbDashboard.retrieveInstanceStatusCode5xx() {
+		ch <- prometheus.MustNewConstMetric(
+			e.instanceStatusCode5xx,
+			prometheus.GaugeValue,
+			float64(point.Average),
+			point.InstanceId,
+		)
+	}
+
+	for _, point := range slbDashboard.retrieveInstanceUpstreamCode5xx() {
+		ch <- prometheus.MustNewConstMetric(
+			e.instanceUpstreamCode5xx,
+			prometheus.GaugeValue,
+			float64(point.Average),
+			point.InstanceId,
 		)
 	}
 
@@ -312,12 +316,4 @@ func (e *CloudmonitorExporter) Collect(ch chan<- prometheus.Metric) {
 		)
 	}
 
-	for _, point := range rdsDashboard.retrieveActiveSessions() {
-		ch <- prometheus.MustNewConstMetric(
-			e.activeSessions,
-			prometheus.GaugeValue,
-			float64(point.Average),
-			point.InstanceId,
-		)
-	}
 }

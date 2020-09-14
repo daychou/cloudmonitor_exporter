@@ -28,7 +28,7 @@ func main() {
 
 	startAt := time.Now()
 	dangledPeriod := func() float64 {
-		return 60 + 2 + math.Sin(float64(time.Since(startAt) / (10 * time.Minute)))
+		return 60 + 2 + math.Sin(float64(time.Since(startAt)/(10*time.Minute)))
 	}
 
 	go func() {

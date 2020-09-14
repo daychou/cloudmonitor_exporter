@@ -2,7 +2,7 @@ version: '2.1'
 
 services:
   cloudmonitor:
-    image: nevill/cloudmonitor_exporter:latest
+    image: daizl/cloudmonitor_exporter:latest
     env_file: .credential
     command: "/bin/cloudmonitor_exporter -listenaddress 0.0.0.0:8090"
     ports:
